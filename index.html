@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Examiner</title>
+		<style>
+			body {
+				padding-top: 2ch;
+				padding-left: 2ch;
+			}
+
+			pre {
+				font-family: "Lucida Console", monospace;
+				height: 90vh;
+				overflow-y: auto;
+			}
+		</style>
+	</head>
+	<body>
+		<button id="startbtn">Start</button>
+		<form id="cmdlineform" hidden>
+			<input name="cmdline" type="text" />
+		</form>
+		<pre id="stdout"></pre>
+
+		<script type="module">
+			import * as player from "./player.js";
+			import * as examiner from "./examiner.js";
+
+			const examiner_state = {};
+
+			startbtn.addEventListener("click", async () => {
+				startbtn.hidden = true;
+				await player.init();
+
+				// await Promise.all([
+				// 	player.precache_for_note(60),
+				// 	player.precache_for_note(63),
+				// 	player.precache_for_note(66),
+				// ]);
+
+				stdout.innerHTML += examiner.init(examiner_state);
+				cmdlineform.hidden = false;
+			});
+
+			cmdlineform.addEventListener("submit", ev => {
+				ev.preventDefault();
+				const line = ev.target.children[0].value;
+
+				stdout.innerHTML += "&gt; " + line + "<br/>";
+				// ev.target.children[0].disabled = true;
+				ev.target.children[0].value = "";
+				examiner.handleLine(examiner_state, line).then(output => {
+					stdout.innerHTML += output;
+					// ev.target.children[0].disabled = false;
+				});
+			});
+		</script>
+	</body>
+</html>
