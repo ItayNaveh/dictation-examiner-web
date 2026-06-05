@@ -39,5 +39,5 @@ fn main() {
 	indexjson += "]";
 
 	fs::write("salindex.json", indexjson).unwrap();
-	fs::write("salbin.bin", bin).unwrap();
+	fs::write("public/salbin.bin", bin).unwrap();
 }
