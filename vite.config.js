@@ -1,8 +1,8 @@
 /** @type {import("vite").UserConfig} */
 export default {
+	base: "/dictation-examiner-web/",
 	build: {
-		outDir: "docs",
-		modulePreload: { polyfill: false },
+		// modulePreload: { polyfill: false },
 		assetsDir: "",
 	},
 };
