@@ -1,4 +1,5 @@
 import _bundle_index from "./salindex.json";
+import _bundle_url from "./salbin.bin";
 
 /** @type {AudioContext} */ let ctx;
 /** @type {[number | string, number][]} */ let bundle_index = _bundle_index;
@@ -6,7 +7,7 @@ import _bundle_index from "./salindex.json";
 const decoded_cache = {};
 
 export async function init() {
-	bundle = await (await fetch("/salbin.bin")).arrayBuffer();
+	bundle = await (await fetch(_bundle_url)).arrayBuffer();
 	ctx = new AudioContext();
 }
 
