@@ -414,7 +414,7 @@ async function play_question(question: Question) {
 			assert(["Root", "_65_3", "_6_43", "_6_42"].includes(question.inversion));
 			if (question.quality == "Diminished") assert(["Diminished", "Minor"].includes(question.seventh));
 			if (question.quality == "Major" || question.quality == "Minor") assert(["Minor", "Major"].includes(question.seventh));
-			if (question.quality == "Augmented") assert_eq(question.seventh, "Augmented");
+			if (question.quality == "Augmented") assert_eq<Seventh>(question.seventh, "Major");
 		} else {
 			assert(["Root", "_6_3", "_64"].includes(question.inversion));
 		}
