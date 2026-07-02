@@ -14,6 +14,7 @@
 				font-family: "Lucida Console", monospace;
 				height: 90vh;
 				overflow-y: auto;
+				margin-bottom: 0;
 			}
 		</style>
 	</head>
@@ -28,17 +29,11 @@
 			import * as player from "./player.js";
 			import * as examiner from "./examiner.js";
 
-			const examiner_state = {};
+			let examiner_state = {};
 
 			startbtn.addEventListener("click", async () => {
 				startbtn.hidden = true;
 				await player.init();
-
-				// await Promise.all([
-				// 	player.precache_for_note(60),
-				// 	player.precache_for_note(63),
-				// 	player.precache_for_note(66),
-				// ]);
 
 				stdout.innerHTML += examiner.init(examiner_state);
 				cmdlineform.hidden = false;
@@ -49,11 +44,15 @@
 				const line = ev.target.children[0].value;
 
 				stdout.innerHTML += "&gt; " + line + "<br/>";
-				// ev.target.children[0].disabled = true;
 				ev.target.children[0].value = "";
 				examiner.handleLine(examiner_state, line).then(output => {
+					if (output == "$RESET") {
+						examiner_state = {};
+						stdout.innerHTML = examiner.init(examiner_state);
+						return;
+					}
+
 					stdout.innerHTML += output;
-					// ev.target.children[0].disabled = false;
 				});
 			});
 		</script>

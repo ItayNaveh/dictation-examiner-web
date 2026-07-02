@@ -265,7 +265,7 @@ export async function handleLine(state: State, line: string): Promise<string> {
 		
 		line = line.trim();
 		if (line == "") return "";
-		if (line == "quit" || line == "q") throw new Error("todo");
+		if (line == "quit" || line == "q") return "$RESET";
 
 		const qn = Number(line) - 1;
 		if (isNaN(qn)) return `Unknown input: |${line}|<br/>`;

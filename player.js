@@ -64,7 +64,7 @@ async function play(midi_note_value) {
 	// if (semitransp != 0) src.playbackRate.value = Math.pow(2, semitransp / 12);
 	if (semitransp != 0) src.detune.value = semitransp * 100;
 
-	const gain = new GainNode(ctx);
+	const gain = new GainNode(ctx, { gain: 0.9 });
 	src.connect(gain);
 	gain.connect(ctx.destination);
 	src.start();
