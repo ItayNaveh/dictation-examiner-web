@@ -140,7 +140,7 @@ function scale_display(s: Scale) {
 function scale_try_from_str(s: string): Scale | null {
 	if (s == "maj" || s == "major") return "Major";
 	if (s == "nat" || s == "natural" || s == "min" || s == "minor") return "NaturalMinor";
-	if (s == "harm" || s == "harmonic") return "HarmonicMinor";
+	if (s == "har" || s == "harmonic") return "HarmonicMinor";
 	if (s == "mel" || s == "melodic") return "MelodicMinor";
 	if (s == "dor" || s == "dorian") return "Dorian";
 	if (s == "phr" || s == "phrygian") return "Phrygian";
@@ -156,26 +156,6 @@ function question_display(q: Question) {
 	if (q.kind == "Chord") return `${chordquality_display(q.quality)}${seventh_display(q.seventh!)} ${inversion_display(q.inversion)}`;
 	if (q.kind == "Scale") return scale_display(q.scale);
 }
-
-/*
-impl rand::distributions::Distribution<Interval> for rand::distributions::Standard {
-	fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Interval {
-		unsafe { std::mem::transmute::<u8, Interval>(rng.gen_range(1..Interval::_Count as usize) as u8) }
-	}
-}
-
-impl rand::distributions::Distribution<ChordQuality> for rand::distributions::Standard {
-	fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> ChordQuality {
-		unsafe { std::mem::transmute::<u8, ChordQuality>(rng.gen_range(0..ChordQuality::_Count as usize) as u8) }
-	}
-}
-
-impl rand::distributions::Distribution<Scale> for rand::distributions::Standard {
-	fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Scale {
-		unsafe { std::mem::transmute::<u8, Scale>(rng.gen_range(0..Scale::_Count as usize) as u8) }
-	}
-}
-*/
 
 const C4 = 60;
 const C3 = C4 - 12;
@@ -290,16 +270,16 @@ function choose_seventh_by_quality(quality: ChordQuality): Seventh {
 	throw new Error("unreachable");
 }
 
-const PRESETS = [
+export const PRESETS = [
 	"Intervals",
 	"Triads", "InvertedTriads", "SevenChords", "InvertedSevenChords", "AllChords",
 	"BasicScales", "MinorModes", "MajorModes", "AllModes",
 
-	"MajMix",
+	"MajMix", "PhrLoc", "DimInv", "mM+M",
 ];
 
 function choose_question(preset: string): Question {
-	assert_eq(PRESETS.length, 11);
+	assert_eq(PRESETS.length, 14);
 
 	if (preset == "Intervals") return {
 		kind: "Interval",
@@ -358,40 +338,36 @@ function choose_question(preset: string): Question {
 		};
 	}
 
-	if (preset == "BasicScales") return {
-		kind: "Scale",
-		root: gen_range_inclusive(config.scale_root_start, config.scale_root_end),
-		scale: choose_from_arr(["Major", "NaturalMinor", "HarmonicMinor", "MelodicMinor"]),
+	if (preset == "BasicScales") return gen_scale_q(["Major", "NaturalMinor", "HarmonicMinor", "MelodicMinor"]);
+	if (preset == "MinorModes") return gen_scale_q(["NaturalMinor", "HarmonicMinor", "MelodicMinor", "Dorian", "Phrygian", "Locrian"]);
+	if (preset == "MajorModes") return gen_scale_q(["Major", "Lydian", "Mixolydian"]);
+	if (preset == "AllModes") return gen_scale_q([
+		"Major", "NaturalMinor", "HarmonicMinor", "MelodicMinor",
+		"Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian"
+	]);
+
+	if (preset == "MajMix") return gen_scale_q(["Major", "Mixolydian"]);
+	if (preset == "PhrLoc") return gen_scale_q(["Phrygian", "Locrian"]);
+
+	if (preset == "DimInv") return {
+		kind: "Chord", root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
+		quality: "Diminished", seventh: null, inversion: choose_from_arr(["Root", "_6_3", "_64"]),
 	};
 
-	if (preset == "MinorModes") return {
-		kind: "Scale",
-		root: gen_range_inclusive(config.scale_root_start, config.scale_root_end),
-		scale: choose_from_arr(["NaturalMinor", "HarmonicMinor", "MelodicMinor", "Dorian", "Phrygian", "Locrian"]),
-	};
-
-	if (preset == "MajorModes") return {
-		kind: "Scale",
-		root: gen_range_inclusive(config.scale_root_start, config.scale_root_end),
-		scale: choose_from_arr(["Major", "Lydian", "Mixolydian"]),
-	};
-
-	if (preset == "AllModes") return {
-		kind: "Scale",
-		root: gen_range_inclusive(config.scale_root_start, config.scale_root_end),
-		scale: choose_from_arr([
-			"Major", "NaturalMinor", "HarmonicMinor", "MelodicMinor",
-			"Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian"
-		]),
-	};
-
-	if (preset == "MajMix") return {
-		kind: "Scale",
-		root: gen_range_inclusive(config.scale_root_start, config.scale_root_end),
-		scale: choose_from_arr(["Major", "Mixolydian"]),
+	if (preset == "mM+M") return {
+		kind: "Chord", root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
+		quality: choose_from_arr<ChordQuality>(["Minor", "Augmented"]), seventh: "Major",
+		inversion: choose_from_arr(["Root", "_65_3", "_6_43", "_6_42"]),
 	};
 
 	throw new Error("unreachable: unknown preset " + preset);
+}
+
+function gen_scale_q(scales: Scale[]): Question {
+	return {
+		kind: "Scale", root: gen_range_inclusive(config.scale_root_start, config.scale_root_end),
+		scale: choose_from_arr(scales),
+	};
 }
 
 const play_note_for = (note: number, ms: number) => player.play_for(note, ms);
