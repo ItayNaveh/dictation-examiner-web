@@ -163,8 +163,6 @@ const G4 = C4 + Interval.p5;
 const C5 = C4 + 12;
 
 const config = {
-	question_count: 10,
-	
 	interval_anchor_start: C3,
 	interval_anchor_end: G4,
 	chord_root_start: C3,
@@ -183,76 +181,39 @@ const config = {
 
 interface State {
 	preset: string,
-	qi: number,
 	question: Question | null,
 	log: { question: Question, answer: string, is_correct: boolean }[],
-	finished: boolean,
-	just_finished: boolean,
 }
 
-export function init(state: State): string {
-	state.qi = 0;
+export function init(state: State, preset: string) {
 	state.log = [];
-	state.finished = false;
-	state.just_finished = false;
-
-	const out = ["Presets:"];
-	for (const p of PRESETS) out.push("\t- " + p);
-	out.push("");
-	return out.join("<br/>");
+	state.preset = preset;
 }
 
-export async function handleLine(state: State, line: string): Promise<string> {
-	if (!state.preset) {
-		line = line.trim();
-		if (PRESETS.includes(line)) state.preset = line;
-		else return `Unknown input: |${line}|<br/>`;
-	}
+export async function next_question(state: State): Promise<string[]> {
+	state.question = choose_question(state.preset);
+	await play_question(state.question);
 
-	if (!state.just_finished && !state.finished) {
-		if (!state.question) {
-			state.question = choose_question(state.preset);
-			await play_question(state.question);
-			return `(${state.qi + 1}) What to do (again, quit)?<br/>`;
-		} else {
-			line = line.trim();
-			if (line == "") return "";
-			if (line == "again" || line == "a") { await play_question(state.question); return ""; }
-			if (line == "quit" || line == "q") { state.question = null; state.just_finished = true; return "Finishing test early!<br/>" + await handleLine(state, ""); }
-			const result = try_check_answer(state.question, line);
-			if (result == null) return `Unknown input: |${line}|<br/>`;
-			state.log.push({ question: state.question, answer: line, is_correct: result });
-			state.question = null;
-			state.qi += 1;
-			if (state.qi >= config.question_count) state.just_finished = true;
-			return await handleLine(state, "");
-		}
-	} else {
-		if (state.just_finished) {
-			state.just_finished = false;
-			state.finished = true;
+	return answers_for(state.preset);
+}
 
-			let out = `<br/>==========<br/>You got ${state.log.filter(e => e.is_correct).length} / ${state.log.length}<br/>==========<br/>`;
-			out += "    You   Answer<br/>";
-			state.log.forEach((e, i) => {
-				const color = e.is_correct ? "green" : "red";
-				// TODO: alignment
-				out += `${i + 1}. <span style="color: ${color}">${e.answer}    ${question_display(e.question)}</span><br/>`;
-			});
-			out += "<br/>What to do (quit, #)?<br/>";
-			return out;
-		}
-		
-		line = line.trim();
-		if (line == "") return "";
-		if (line == "quit" || line == "q") return "$RESET";
+export async function replay_question(state: State) {
+	if (!state.question) throw new Error("Invalid");
+	await play_question(state.question);
+}
 
-		const qn = Number(line) - 1;
-		if (isNaN(qn)) return `Unknown input: |${line}|<br/>`;
-		if (qn >= state.log.length) return "Question number invalid<br/>";
-		await play_question(state.log[qn].question);
-		return "";
-	}
+export function submit_answer(state: State, answer: string) {
+	if (!state.question) throw new Error("Invalid");
+
+	const result = try_check_answer(state.question, answer);
+	if (result == null) throw new Error("aaaa");
+
+	state.log.push({ question: state.question, answer, is_correct: result });
+	state.question = null;
+}
+
+export function get_log(state: State) {
+	return state.log.map(l => ({ ...l, question: question_display(l.question) }));
 }
 
 
@@ -359,6 +320,42 @@ function choose_question(preset: string): Question {
 		quality: choose_from_arr<ChordQuality>(["Minor", "Augmented"]), seventh: "Major",
 		inversion: choose_from_arr(["Root", "_65_3", "_6_43", "_6_42"]),
 	};
+
+	throw new Error("unreachable: unknown preset " + preset);
+}
+
+function combine(as: string[], bs: string[]): string[] {
+	return as.flatMap(a => bs.map(b => a + " " + b));
+}
+
+function answers_for(preset: string): string[] {
+	assert_eq(PRESETS.length, 14);
+
+	if (preset == "Intervals") {
+		let intrs = Object.keys(Interval);
+		intrs.splice(intrs.indexOf("_Count"), 1);
+		intrs = intrs.map(i => i.replace('m', '-').replace('M', '+'));
+		// return ["up", "down"].flatMap(dir => intrs.map(i => i + " " + dir));
+		return combine(intrs, ["up", "down"]);
+	}
+
+	if (preset == "Triads") return ["M", "m", "o", "+"];
+	if (preset == "InvertedTriads") return combine(["M", "m", "o", "+"], ["", "6", "64"]);
+	if (preset == "SevenChords") return ["Mm", "MM", "mm", "mM", "om", "oo", "+M"];
+	if (preset == "InvertedSevenChords") return combine(answers_for("SevenChords"), ["", "65", "43", "42"]);
+	
+	if (preset == "AllChords") return [...answers_for("InvertedTriads"), ...answers_for("InvertedSevenChords")];
+
+	if (preset == "BasicScales") return ["major", "natural", "harmonic", "melodic"];
+	if (preset == "MinorModes") return ["natural", "harmonic", "melodic", "dorian", "phrygian", "locrian"];
+	if (preset == "MajorModes") return ["major", "lydian", "mixolydian"];
+	if (preset == "AllModes") return ["major", "natural", "harmonic", "melodic", "dorian", "phrygian", "lydian", "mixolydian", "locrian"];
+
+	if (preset == "MajMix") return ["major", "mixolydian"];
+	if (preset == "PhrLoc") return ["phrygian", "locrian"];
+
+	if (preset == "DimInv") return ["o", "o 6", "o 64"];
+	if (preset == "mM+M") return combine(["mM", "+M"], ["", "65", "43", "42"]);
 
 	throw new Error("unreachable: unknown preset " + preset);
 }

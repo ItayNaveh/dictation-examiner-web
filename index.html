@@ -19,41 +19,89 @@
 		</style>
 	</head>
 	<body>
-		<button id="startbtn">Start</button>
-		<form id="cmdlineform" hidden>
-			<input name="cmdline" type="text" />
-		</form>
-		<pre id="stdout"></pre>
+		<div id="presetstuff">
+			<div id="presetstuff__sel"></div>
+			<button id="presetstuff__next">Next</button>
+		</div>
+
+		<div id="answerstuff" hidden>
+			<button id="answerstuff__again">Again</button>
+			<button id="answerstuff__finish">Finish Early</button>
+			<form id="answerstuff__form"></form>
+		</div>
+
+		<div id="summarystuff" hidden>
+			<div id="summarystuff__log"></div>
+			<button id="summarystuff__reset">Reset</button>
+		</div>
 
 		<script type="module">
 			import * as player from "./player.js";
 			import * as examiner from "./examiner.js";
 
+			let player_inited = false;
 			let examiner_state = {};
+			const question_count = 2;
+			let qi = 0;
 
-			startbtn.addEventListener("click", async () => {
-				startbtn.hidden = true;
-				await player.init();
+			let presets_builder = "";
+			for (const p of examiner.PRESETS) presets_builder += `<label><input type="radio" name="preset-sel" value="${p}" />${p}</label><br />`;
+			presetstuff__sel.innerHTML = presets_builder;
 
-				stdout.innerHTML += examiner.init(examiner_state);
-				cmdlineform.hidden = false;
+			presetstuff__next.addEventListener("click", async () => {
+				const selected = presetstuff__sel.querySelector("input:checked");
+				if (!selected) { console.log("Please select first"); return; }
+				presetstuff.hidden = true;
+				examiner.init(examiner_state, selected.value);
+				
+				if (!player_inited) { await player.init(); player_inited = true; }
+				await next_question();
+				answerstuff.hidden = false;
 			});
 
-			cmdlineform.addEventListener("submit", ev => {
+			async function next_question() {
+				if (qi >= question_count) { finish_test(); return; }
+				const possible_answers = await examiner.next_question(examiner_state);
+				let answers_builder = "";
+				for (const a of possible_answers) answers_builder += `<button type="submit">${a}</button>`;
+				answerstuff__form.innerHTML = answers_builder;
+			}
+
+			answerstuff__again.addEventListener("click", () => examiner.replay_question(examiner_state));
+			answerstuff__finish.addEventListener("click", () => finish_test());
+
+			answerstuff__form.addEventListener("submit", ev => {
 				ev.preventDefault();
-				const line = ev.target.children[0].value;
+				examiner.submit_answer(examiner_state, ev.submitter.textContent);
+				qi += 1;
+				answerstuff__form.innerHTML = "";
+				next_question();
+			});
 
-				stdout.innerHTML += "&gt; " + line + "<br/>";
-				ev.target.children[0].value = "";
-				examiner.handleLine(examiner_state, line).then(output => {
-					if (output == "$RESET") {
-						examiner_state = {};
-						stdout.innerHTML = examiner.init(examiner_state);
-						return;
-					}
+			function finish_test() {
+				answerstuff.hidden = true;
 
-					stdout.innerHTML += output;
-				});
+				const log = examiner.get_log(examiner_state);
+				let summarybuilder = "";
+				summarybuilder += `<br/>==========<br/>You got ${log.filter(e => e.is_correct).length} / ${log.length}<br/>==========<br/>`;
+				for (let i = 0; i < log.length; i++) {
+					const l = log[i];
+					const color = l.is_correct ? "green" : "red";
+					summarybuilder += `${i + 1}. <span style="color: ${color}">${l.answer}    ${l.question}</span><br/>`;
+				}
+
+				summarystuff__log.innerHTML = summarybuilder;
+				summarystuff.hidden = false;
+			}
+
+			summarystuff__reset.addEventListener("click", () => {
+				summarystuff.hidden = true;
+
+				examiner_state = {};
+				qi = 0;
+				examiner.init(examiner_state);
+
+				presetstuff.hidden = false;
 			});
 		</script>
 	</body>
