@@ -111,6 +111,7 @@ function inversion_display(i: Inversion) {
 }
 
 function inversion_try_from_str(s: string): Inversion | null {
+	if (s == "R") return "Root";
 	if (s == "6") return "_6_3";
 	if (s == "64") return "_64";
 	if (s == "65") return "_65_3";
@@ -192,6 +193,11 @@ export async function next_question(state: State): Promise<string[][]> {
 export async function replay_question(state: State) {
 	if (!state.question) throw new Error("Invalid");
 	await play_question(state.question);
+}
+
+export async function play_from_log(state: State, idx: number) {
+	// if (idx >= state.log.length) throw new Error("Invalid idx");
+	await play_question(state.log[idx].question);
 }
 
 export function submit_answer(state: State, answer: string) {

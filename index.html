@@ -53,7 +53,7 @@
 			let qi = 0;
 
 			let presets_builder = "";
-			for (const p of examiner.PRESETS) presets_builder += `<label><input type="radio" name="preset-sel" value="${p}" />${p}</label><br />`;
+			for (const p of examiner.PRESETS) presets_builder += `<label><input type="radio" name="preset-sel" value="${p}" required />${p}</label><br />`;
 			presetstuff__sel.innerHTML = presets_builder;
 
 			presetstuff__next.addEventListener("click", async () => {
@@ -74,7 +74,7 @@
 				let colidx = 0;
 				for (const col of possible_answers) {
 					answers_builder += `<div class="answerstuff__form__inner__col">`;
-					for (const a of col) answers_builder += `<label><input type="radio" name="col-${colidx}" value="${a}" />${a}</label><br />`;
+					for (const a of col) answers_builder += `<label><input type="radio" name="col-${colidx}" value="${a}" required />${a}</label><br />`;
 					answers_builder += `</div>`;
 					colidx++;
 				}
@@ -102,14 +102,19 @@
 				const log = examiner.get_log(examiner_state);
 				let summarybuilder = "";
 				summarybuilder += `<br/>==========<br/>You got ${log.filter(e => e.is_correct).length} / ${log.length}<br/>==========<br/>`;
+				summarybuilder += "You     /     Answer<br />";
 				for (let i = 0; i < log.length; i++) {
 					const l = log[i];
 					const color = l.is_correct ? "green" : "red";
-					summarybuilder += `${i + 1}. <span style="color: ${color}">${l.answer}    ${l.question}</span><br/>`;
+					summarybuilder += `<button class="summarystuff__log__play" data-i="${i}">P</button> ${i + 1}. <span style="color: ${color}">${l.answer}    ${l.question}</span><br/>`;
 				}
 
 				summarystuff__log.innerHTML = summarybuilder;
 				summarystuff.hidden = false;
+
+				summarystuff__log.querySelectorAll(".summarystuff__log__play").forEach(btn => btn.addEventListener("click", ev => {
+					examiner.play_from_log(examiner_state, +ev.target.dataset.i);
+				}));
 			}
 
 			summarystuff__reset.addEventListener("click", () => {
