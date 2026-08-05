@@ -255,13 +255,15 @@ function choose_question(preset: string): Question {
 		inversion: "Root",
 	};
 
-	if (preset == "InvertedTriads") return {
-		kind: "Chord",
-		root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
-		quality: choose_from_arr(["Major", "Minor", "Diminished", "Augmented"]),
-		seventh: null,
-		inversion: choose_from_arr(["Root", "_6_3", "_64"]),
-	};
+	if (preset == "InvertedTriads") {
+		const q = choose_from_arr<ChordQuality>(["Major", "Minor", "Diminished", "Augmented"]);
+		return {
+			kind: "Chord",
+			root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
+			quality: q, seventh: null,
+			inversion: q == "Augmented" ? "Root" : choose_from_arr(["Root", "_6_3", "_64"]),
+		};
+	}
 
 	if (preset == "SevenChords") {
 		const quality = choose_from_arr<ChordQuality>(["Major", "Minor", "Diminished", "Augmented"]);
@@ -276,20 +278,27 @@ function choose_question(preset: string): Question {
 
 	if (preset == "InvertedSevenChords") {
 		const quality = choose_from_arr<ChordQuality>(["Major", "Minor", "Diminished", "Augmented"]);
+		const seventh = choose_seventh_by_quality(quality);
 		return {
 			kind: "Chord",
 			root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
-			quality,
-			seventh: choose_seventh_by_quality(quality),
-			inversion: choose_from_arr(["Root", "_65_3", "_6_43", "_6_42"]),
+			quality, seventh,
+			inversion: (quality == "Diminished" && seventh == "Diminished") ? "Root" : choose_from_arr(["Root", "_65_3", "_6_43", "_6_42"]),
 		};
 	}
 
 	if (preset == "AllChords") {
 		const quality = choose_from_arr<ChordQuality>(["Major", "Minor", "Diminished", "Augmented"]);
-		const [seventh, inversion] = Math.random() < config.all_chords_7th_chance ?
-			[choose_seventh_by_quality(quality), choose_from_arr<Inversion>(["Root", "_65_3", "_6_43", "_6_42"])] :
-			[null,                               choose_from_arr<Inversion>(["Root", "_6_3", "_64"])];
+
+		let seventh: Seventh | null = null;
+		let inversion: Inversion;
+		if (Math.random() < config.all_chords_7th_chance) {
+			seventh = choose_seventh_by_quality(quality);
+			inversion = (quality == "Diminished" && seventh == "Diminished") ? "Root" : choose_from_arr(["Root", "_65_3", "_6_43", "_6_42"]);
+		} else {
+			inversion = quality == "Augmented" ? "Root" : choose_from_arr<Inversion>(["Root", "_6_3", "_64"]);
+		}
+
 		return {
 			kind: "Chord",
 			root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
