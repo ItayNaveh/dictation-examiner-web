@@ -16,6 +16,11 @@
 				overflow-y: auto;
 				margin-bottom: 0;
 			}
+
+			#answerstuff__form__inner {
+				display: flex;
+				align-items: center;
+			}
 		</style>
 	</head>
 	<body>
@@ -27,7 +32,10 @@
 		<div id="answerstuff" hidden>
 			<button id="answerstuff__again">Again</button>
 			<button id="answerstuff__finish">Finish Early</button>
-			<form id="answerstuff__form"></form>
+			<form id="answerstuff__form">
+				<div id="answerstuff__form__inner"></div>
+				<button type="submit">Next</button>
+			</form>
 		</div>
 
 		<div id="summarystuff" hidden>
@@ -63,8 +71,14 @@
 				if (qi >= question_count) { finish_test(); return; }
 				const possible_answers = await examiner.next_question(examiner_state);
 				let answers_builder = "";
-				for (const a of possible_answers) answers_builder += `<button type="submit">${a}</button>`;
-				answerstuff__form.innerHTML = answers_builder;
+				let colidx = 0;
+				for (const col of possible_answers) {
+					answers_builder += `<div class="answerstuff__form__inner__col">`;
+					for (const a of col) answers_builder += `<label><input type="radio" name="col-${colidx}" value="${a}" />${a}</label><br />`;
+					answers_builder += `</div>`;
+					colidx++;
+				}
+				answerstuff__form__inner.innerHTML = answers_builder;
 			}
 
 			answerstuff__again.addEventListener("click", () => examiner.replay_question(examiner_state));
@@ -72,9 +86,13 @@
 
 			answerstuff__form.addEventListener("submit", ev => {
 				ev.preventDefault();
-				examiner.submit_answer(examiner_state, ev.submitter.textContent);
+
+				const cols = [...answerstuff__form__inner.querySelectorAll(".answerstuff__form__inner__col input:checked")];
+				const answer = cols.map(i => [+i.name.substring("col-".length), i.value]).sort((a, b) => a[0] - b[0]).map(i => i[1]).join(" ");
+				examiner.submit_answer(examiner_state, answer);
+
 				qi += 1;
-				answerstuff__form.innerHTML = "";
+				answerstuff__form__inner.innerHTML = "";
 				next_question();
 			});
 

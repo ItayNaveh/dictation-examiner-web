@@ -23,7 +23,6 @@ const Interval = {
 };
 
 type ChordQuality = "Major" | "Minor" | "Diminished" | "Augmented";
-// enum ChordQuality { Major, Minor, Diminished, Augmented }
 type Seventh = "Minor" | "Major" | "Diminished";
 
 type Inversion = "Root" |
@@ -34,11 +33,6 @@ type Scale = "Major" |
 	"NaturalMinor" | "HarmonicMinor" | "MelodicMinor" |
 	"Dorian" | "Phrygian" | "Lydian" | "Mixolydian" | "Locrian";
 
-// interface Question {
-// 	kind: "Interval" | "Chord" | "Scale",
-// 	root: number,
-// 	data: [Interval, boolean] | [ChordQuality, Seventh | null, Inversion] | Scale,
-// }
 type Question =
 	{ kind: "Interval", anchor: number, interval: Interval, is_up: boolean } |
 	{ kind: "Chord", root: number, quality: ChordQuality, seventh: Seventh | null, inversion: Inversion } |
@@ -173,10 +167,8 @@ const config = {
 	all_chords_7th_chance: 0.75,
 	
 	play_interval_for: 1500,
-	play_chord_for: 1500,
-	play_scale_note_for: 150,
-	
-	midi_velocity: 50,
+	play_chord_for: 2000,
+	play_scale_note_for: 150,	
 };
 
 interface State {
@@ -190,7 +182,7 @@ export function init(state: State, preset: string) {
 	state.preset = preset;
 }
 
-export async function next_question(state: State): Promise<string[]> {
+export async function next_question(state: State): Promise<string[][]> {
 	state.question = choose_question(state.preset);
 	await play_question(state.question);
 
@@ -205,8 +197,8 @@ export async function replay_question(state: State) {
 export function submit_answer(state: State, answer: string) {
 	if (!state.question) throw new Error("Invalid");
 
-	const result = try_check_answer(state.question, answer);
-	if (result == null) throw new Error("aaaa");
+	const result = try_check_answer(state.question, answer, state.preset);
+	if (result == null) throw new Error("Unrechable");
 
 	state.log.push({ question: state.question, answer, is_correct: result });
 	state.question = null;
@@ -236,12 +228,12 @@ export const PRESETS = [
 	"Triads", "InvertedTriads", "SevenChords", "InvertedSevenChords", "AllChords",
 	"BasicScales", "MinorModes", "MajorModes", "AllModes",
 
-	"MajMix", "PhrLoc", "DimInv", "mM+M",
+	"MajMix", "PhrLoc", "MajMin Scale Type", "DimInv", "MMmm NoInv", "MMmm Inv", "mM+M NoInv", "mM+M Inv",
 ];
 
-function choose_question(preset: string): Question {
-	assert_eq(PRESETS.length, 14);
 
+assert_eq(PRESETS.length, 18);
+function choose_question(preset: string): Question {
 	if (preset == "Intervals") return {
 		kind: "Interval",
 		anchor: gen_range_inclusive(config.interval_anchor_start, config.interval_anchor_end),
@@ -307,57 +299,101 @@ function choose_question(preset: string): Question {
 		"Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian"
 	]);
 
-	if (preset == "MajMix") return gen_scale_q(["Major", "Mixolydian"]);
-	if (preset == "PhrLoc") return gen_scale_q(["Phrygian", "Locrian"]);
+	switch (preset) {
+		case "MajMix": return gen_scale_q(["Major", "Mixolydian"]);
+		case "PhrLoc": return gen_scale_q(["Phrygian", "Locrian"]);
+	
+		case "MajMin Scale Type":
+			return gen_scale_q([
+				"Major", "NaturalMinor", "HarmonicMinor", "MelodicMinor",
+				"Dorian", "Phrygian", "Lydian", "Mixolydian", "Locrian"
+			]);
 
-	if (preset == "DimInv") return {
-		kind: "Chord", root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
-		quality: "Diminished", seventh: null, inversion: choose_from_arr(["Root", "_6_3", "_64"]),
-	};
+		case "DimInv":
+			return {
+				kind: "Chord", root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
+				quality: "Diminished", seventh: null, inversion: choose_from_arr(["Root", "_6_3", "_64"]),
+			};
 
-	if (preset == "mM+M") return {
-		kind: "Chord", root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
-		quality: choose_from_arr<ChordQuality>(["Minor", "Augmented"]), seventh: "Major",
-		inversion: choose_from_arr(["Root", "_65_3", "_6_43", "_6_42"]),
-	};
+		case "MMmm NoInv": {
+			let q = choose_from_arr<any>(["Major", "Minor"]);
+			return {
+				kind: "Chord", root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
+				quality: q, seventh: q,
+				inversion: "Root",
+			};
+		}
 
-	throw new Error("unreachable: unknown preset " + preset);
+		case "MMmm Inv": {
+			let q = choose_from_arr<any>(["Major", "Minor"]);
+			return {
+				kind: "Chord", root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
+				quality: q, seventh: q,
+				inversion: choose_from_arr(["Root", "_65_3", "_6_43", "_6_42"]),
+			};
+		}
+
+		case "mM+M NoInv":
+			return {
+				kind: "Chord", root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
+				quality: choose_from_arr<ChordQuality>(["Minor", "Augmented"]), seventh: "Major",
+				inversion: "Root",
+			};
+
+		case "mM+M Inv":
+			return {
+				kind: "Chord", root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
+				quality: choose_from_arr<ChordQuality>(["Minor", "Augmented"]), seventh: "Major",
+				inversion: choose_from_arr(["Root", "_65_3", "_6_43", "_6_42"]),
+			};
+
+		default: throw new Error("unreachable: unknown preset " + preset);
+	}
 }
 
 function combine(as: string[], bs: string[]): string[] {
 	return as.flatMap(a => bs.map(b => a + " " + b));
 }
 
-function answers_for(preset: string): string[] {
-	assert_eq(PRESETS.length, 14);
-
+assert_eq(PRESETS.length, 18);
+function answers_for(preset: string): string[][] {
 	if (preset == "Intervals") {
 		let intrs = Object.keys(Interval);
 		intrs.splice(intrs.indexOf("_Count"), 1);
 		intrs = intrs.map(i => i.replace('m', '-').replace('M', '+'));
-		// return ["up", "down"].flatMap(dir => intrs.map(i => i + " " + dir));
-		return combine(intrs, ["up", "down"]);
+		return [intrs, ["up", "down"]];
 	}
 
-	if (preset == "Triads") return ["M", "m", "o", "+"];
-	if (preset == "InvertedTriads") return combine(["M", "m", "o", "+"], ["", "6", "64"]);
-	if (preset == "SevenChords") return ["Mm", "MM", "mm", "mM", "om", "oo", "+M"];
-	if (preset == "InvertedSevenChords") return combine(answers_for("SevenChords"), ["", "65", "43", "42"]);
+	if (preset == "Triads") return [["M", "m", "o", "+"]];
+	if (preset == "InvertedTriads") return [["M", "m", "o", "+"], ["R", "6", "64"]];
+	if (preset == "SevenChords") return [["Mm", "MM", "mm", "mM", "om", "oo", "+M"]];
+	if (preset == "InvertedSevenChords") return [answers_for("SevenChords")[0], ["R", "65", "43", "42"]];
 	
-	if (preset == "AllChords") return [...answers_for("InvertedTriads"), ...answers_for("InvertedSevenChords")];
+	if (preset == "AllChords") {
+		const invtri = answers_for("InvertedTriads");
+		const invsev = answers_for("InvertedSevenChords");
+		return [[...invtri[0], ...invsev[0]], [...invtri[1], ...invsev[1]]];
+	}
 
-	if (preset == "BasicScales") return ["major", "natural", "harmonic", "melodic"];
-	if (preset == "MinorModes") return ["natural", "harmonic", "melodic", "dorian", "phrygian", "locrian"];
-	if (preset == "MajorModes") return ["major", "lydian", "mixolydian"];
-	if (preset == "AllModes") return ["major", "natural", "harmonic", "melodic", "dorian", "phrygian", "lydian", "mixolydian", "locrian"];
+	if (preset == "BasicScales") return [["major", "natural", "harmonic", "melodic"]];
+	if (preset == "MinorModes") return [["natural", "harmonic", "melodic", "dorian", "phrygian", "locrian"]];
+	if (preset == "MajorModes") return [["major", "lydian", "mixolydian"]];
+	if (preset == "AllModes") return [["major", "natural", "harmonic", "melodic", "dorian", "phrygian", "lydian", "mixolydian", "locrian"]];
 
-	if (preset == "MajMix") return ["major", "mixolydian"];
-	if (preset == "PhrLoc") return ["phrygian", "locrian"];
+	switch (preset) {
+		case "MajMix": return [["major", "mixolydian"]];
+		case "PhrLoc": return [["phrygian", "locrian"]];
+		case "MajMin Scale Type": return [["Majory", "Minory"]];
 
-	if (preset == "DimInv") return ["o", "o 6", "o 64"];
-	if (preset == "mM+M") return combine(["mM", "+M"], ["", "65", "43", "42"]);
+		case "DimInv": return [["o", "o 6", "o 64"]];
 
-	throw new Error("unreachable: unknown preset " + preset);
+		case "MMmm NoInv": return [["MM", "mm"]];
+		case "MMmm Inv": return [["MM", "mm"], ["R", "65", "43", "42"]];
+		case "mM+M NoInv": return [["mM", "+M"]];
+		case "mM+M Inv": return [["mM", "+M"], ["R", "65", "43", "42"]];
+
+		default: throw new Error("unreachable: unknown preset " + preset);
+	}
 }
 
 function gen_scale_q(scales: Scale[]): Question {
@@ -485,7 +521,7 @@ async function play_question(question: Question) {
 	}
 }
 
-function try_check_answer(question: Question, answer: string): boolean | null {
+function try_check_answer(question: Question, answer: string, preset: string): boolean | null {
 	if (question.kind == "Interval") {
 		const spaceindex = answer.indexOf(" ");
 		if (spaceindex < 0) return null;
@@ -536,6 +572,13 @@ function try_check_answer(question: Question, answer: string): boolean | null {
 	}
 
 	if (question.kind == "Scale") {
+		// a bit of a hack
+		if (preset == "MajMin Scale Type") {
+			if (answer == "Majory") return ["Major", "Lydian", "Mixolydian"].indexOf(question.scale) >= 0;
+			if (answer == "Minory") return ["NaturalMinor", "HarmonicMinor", "MelodicMinor", "Dorian", "Phrygian", "Locrian"].indexOf(question.scale) >= 0;
+			throw new Error("Unreachable");
+		}
+
 		const s = scale_try_from_str(answer);
 		if (s == null) return null;
 		return s == question.scale;
