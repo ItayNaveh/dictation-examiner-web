@@ -164,12 +164,12 @@ const config = {
 	chord_root_end: G4,
 	scale_root_start: C3,
 	scale_root_end: C4,
-	
+
 	all_chords_7th_chance: 0.75,
-	
+
 	play_interval_for: 1500,
 	play_chord_for: 2000,
-	play_scale_note_for: 150,	
+	play_scale_note_for: 175,
 };
 
 interface State {
@@ -234,11 +234,11 @@ export const PRESETS = [
 	"Triads", "InvertedTriads", "SevenChords", "InvertedSevenChords", "AllChords",
 	"BasicScales", "MinorModes", "MajorModes", "AllModes",
 
-	"MajMix", "PhrLoc", "MajMin Scale Type", "DimInv", "MMmm NoInv", "MMmm Inv", "mM+M NoInv", "mM+M Inv",
+	"MajMix", "PhrLoc", "MajMin Scale Type", "DimInv", "MM Inv", "MMmm NoInv", "MMmm Inv", "mM+M NoInv", "mM+M Inv",
 ];
 
 
-assert_eq(PRESETS.length, 18);
+assert_eq(PRESETS.length, 19);
 function choose_question(preset: string): Question {
 	if (preset == "Intervals") return {
 		kind: "Interval",
@@ -317,7 +317,7 @@ function choose_question(preset: string): Question {
 	switch (preset) {
 		case "MajMix": return gen_scale_q(["Major", "Mixolydian"]);
 		case "PhrLoc": return gen_scale_q(["Phrygian", "Locrian"]);
-	
+
 		case "MajMin Scale Type":
 			return gen_scale_q([
 				"Major", "NaturalMinor", "HarmonicMinor", "MelodicMinor",
@@ -330,6 +330,13 @@ function choose_question(preset: string): Question {
 				quality: "Diminished", seventh: null, inversion: choose_from_arr(["Root", "_6_3", "_64"]),
 			};
 
+		case "MM Inv":
+			return {
+				kind: "Chord", root: gen_range_inclusive(config.chord_root_start, config.chord_root_end),
+				quality: "Major", seventh: "Major",
+				inversion: choose_from_arr(["Root", "_65_3", "_6_43", "_6_42"]),
+			};
+		
 		case "MMmm NoInv": {
 			let q = choose_from_arr<any>(["Major", "Minor"]);
 			return {
@@ -370,7 +377,7 @@ function combine(as: string[], bs: string[]): string[] {
 	return as.flatMap(a => bs.map(b => a + " " + b));
 }
 
-assert_eq(PRESETS.length, 18);
+assert_eq(PRESETS.length, 19);
 function answers_for(preset: string): string[][] {
 	if (preset == "Intervals") {
 		let intrs = Object.keys(Interval);
@@ -383,7 +390,7 @@ function answers_for(preset: string): string[][] {
 	if (preset == "InvertedTriads") return [["M", "m", "o", "+"], ["R", "6", "64"]];
 	if (preset == "SevenChords") return [["Mm", "MM", "mm", "mM", "om", "oo", "+M"]];
 	if (preset == "InvertedSevenChords") return [answers_for("SevenChords")[0], ["R", "65", "43", "42"]];
-	
+
 	if (preset == "AllChords") {
 		const invtri = answers_for("InvertedTriads");
 		const invsev = answers_for("InvertedSevenChords");
@@ -401,6 +408,7 @@ function answers_for(preset: string): string[][] {
 		case "MajMin Scale Type": return [["Majory", "Minory"]];
 
 		case "DimInv": return [["o", "o 6", "o 64"]];
+		case "MM Inv": return [["MM", "MM 65", "MM 43", "MM 42"]];
 
 		case "MMmm NoInv": return [["MM", "mm"]];
 		case "MMmm Inv": return [["MM", "mm"], ["R", "65", "43", "42"]];
@@ -442,7 +450,7 @@ async function play_question(question: Question) {
 		} else {
 			assert(["Root", "_6_3", "_64"].includes(question.inversion));
 		}
-		
+
 
 		let chord = (() => {
 			if (question.quality == "Major") return [question.root, question.root + Interval.M3, question.root + Interval.p5];
@@ -468,7 +476,7 @@ async function play_question(question: Question) {
 			const n = chord.shift()!;
 			chord.push(n + Interval.p8); // TODO: be possible to generate 64 chords that are lower
 		}
-		
+
 		await play_note_for(chord[0], config.play_interval_for);
 		await sleep(100);
 		await play_notes_for(chord, config.play_chord_for);
